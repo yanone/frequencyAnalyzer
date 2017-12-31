@@ -6,7 +6,7 @@ The frequencies that your EQ can adjust (and that you want to measure) are defin
 
 Then, press `Play` to visualize the frequency response. 
 
-This tool is a cheaply hacked implementation of similar professional solutions. It is meant to be used in combination with a professional sound card playing the frequencies to the P.A., and a professional measurement microphone to record them back into the computer. The system’s standard sound input and output devices are used.
+This tool is a cheaply hacked implementation of similar professional solutions. It is meant to be used in combination with a professional sound card playing the frequencies to the P.A., and a professional measurement microphone to record them back into the computer. The system’s standard sound input and output devices are used. Change them in the system preferences.
 
 ![](window.png)
 
