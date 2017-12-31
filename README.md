@@ -19,3 +19,5 @@ pip install wxPython
 brew install portaudio
 pip install pyaudio
 ```
+
+Then, you can call the app using `python frequencyAnalyzer.py`
