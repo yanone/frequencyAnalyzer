@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array>
+	<integer>20</integer>
+	<integer>25</integer>
+	<real>31.5</real>
+	<integer>40</integer>
+	<integer>50</integer>
+	<integer>63</integer>
+	<integer>80</integer>
+	<integer>100</integer>
+	<integer>125</integer>
+	<integer>160</integer>
+	<integer>200</integer>
+	<integer>250</integer>
+	<integer>315</integer>
+	<integer>400</integer>
+	<integer>500</integer>
+	<integer>630</integer>
+	<integer>800</integer>
+	<integer>1000</integer>
+	<integer>1250</integer>
+	<integer>1600</integer>
+	<integer>2000</integer>
+	<integer>2500</integer>
+	<integer>3150</integer>
+	<integer>4000</integer>
+	<integer>5000</integer>
+	<integer>6300</integer>
+	<integer>8000</integer>
+	<integer>10000</integer>
+	<integer>12500</integer>
+	<integer>16000</integer>
+	<integer>20000</integer>
+</array>
+</plist>

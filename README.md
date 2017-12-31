@@ -1,8 +1,8 @@
 # frequencyAnalyzer
 
-Graphical tool written in Python to measure frequency response of P.A. systems, in order to adjust the frequency range with a graphical EQ unit.
+Graphical tool written in Python to measure frequency response of P.A. systems, in order to adjust the frequency range with a graphical EQ unit. This is mostly important in small rooms that have a very high probability to show resonance and dissonance frequencies, which will distort your music reproduction.
 
-The frequencies that the EQ can adjust are defined in the `frequencies` variable, and a few intermediate frequencies should be measured between them (`intermediateSteps`).
+The frequencies that your EQ can adjust (and that you want to measure) are defined in `.plist` files (see example file in `devices` sub folder). You can adjust such a file to match your EQ. Then load a device file with the `Device` button.
 
 Then, press `Play` to visualize the frequency response. 
 
@@ -10,7 +10,7 @@ This tool is a cheaply hacked implementation of similar professional solutions. 
 
 ![](window.png)
 
-Requires  `wx`, as well as `pyaudio`, which in turns requires `portaudio`.
+Requires  `wx`, as well as `pyaudio`, which in turns requires `portaudio`, which in turn you can install using `homebrew`.
 
 Install (on Mac):
 

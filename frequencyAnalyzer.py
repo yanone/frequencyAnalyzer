@@ -1,5 +1,6 @@
 
 
+import plistlib
 import threading
 import pyaudio
 import numpy as np
@@ -14,10 +15,9 @@ from ynlib.maths import Interpolate
 
 ###############################################################
 
-frequencies = [25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 16000]
-intermediateSteps = 5
-
-frequencies = [20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000]
+frequencies = []
+interpolatedFrequencies = []
+volumes = {}
 intermediateSteps = 3
 
 ###############################################################
@@ -40,19 +40,6 @@ RATE = 44100
 
 
 
-interpolatedFrequencies = []
-for i, f in enumerate(frequencies):
-	if i > 0 and intermediateSteps > 0:
-
-		for s in range(intermediateSteps):
-			print s
-			interpolatedFrequencies.append(Interpolate(frequencies[i-1], f, (s + 1)/float(intermediateSteps + 1)))
-
-	interpolatedFrequencies.append(f)
-
-volumes = {}
-for f in interpolatedFrequencies:
-	volumes[f] = 0
 
 
 outputStream = out.open(format=pyaudio.paFloat32,
@@ -147,7 +134,7 @@ class Record(threading.Thread):
 class Example(wx.Frame):
 	def __init__(self, parent, title):
 		super(Example, self).__init__(parent, title=title, 
-			size=(800, 400))
+			size=(1000, 600))
 
 		self.alive = True
 		self._max = 0
@@ -157,6 +144,8 @@ class Example(wx.Frame):
 		self.recorder = Record(self)
 		self.recorder.start()
 
+		self.deviceButton = wx.Button(self, -1, "Device")
+		self.deviceButton.Bind(wx.EVT_BUTTON, self.OnDevice) 
 		self.playButton = wx.Button(self, -1, "Play")
 		self.playButton.Bind(wx.EVT_BUTTON, self.OnPlay) 
 		self.stopButton = wx.Button(self, -1, "Stop")
@@ -195,72 +184,73 @@ class Example(wx.Frame):
 		height = max(1, (bottom - top))
 		width = max(1, (right - left))
 
+		if frequencies:
+			_min = min([volumes[x] for x in volumes.keys()])
+			_max = min([volumes[x] for x in volumes.keys()])
+	#		self._max = max(_max, self._max)
 
-		_min = min([volumes[x] for x in volumes.keys()])
-		_max = min([volumes[x] for x in volumes.keys()])
-#		self._max = max(_max, self._max)
+			if self._max:
+				factor = float(height) / float(self._max)
+			else:
+				factor = 1
 
-		if self._max:
-			factor = float(height) / float(self._max)
-		else:
-			factor = 1
+	#		print 'max', self._max, 'height', height, 'factor', factor
+	#		print factor
 
-#		print 'max', self._max, 'height', height, 'factor', factor
-#		print factor
+			for i, f in enumerate(interpolatedFrequencies):
 
-		for i, f in enumerate(interpolatedFrequencies):
+				colour = wx.Colour(223,219,0)
+				activeColour = wx.Colour(229,53,45)
 
-			colour = wx.Colour(223,219,0)
-			activeColour = wx.Colour(229,53,45)
-
-			# if self.currentFrequency == f:
-			# 	pen=wx.Pen(activeColour ,4)
-			# else:
-			# 	pen=wx.Pen(colour ,4)
-
-
-			x = left + i * (right - left) / float(len(interpolatedFrequencies) - 1)
-			if f in frequencies:
-				pen=wx.Pen(activeColour ,4)
-				dc.SetPen(pen)
-				dc.DrawLine(x, top, x, bottom)
-
-			# connecting lines
-			pointPosition = (x, bottom - volumes[f] * factor)
-
-			if i > 0:
-				previousPointPosition = (left + (i-1) * (right - left) / float(len(interpolatedFrequencies) - 1), bottom - volumes[interpolatedFrequencies[i-1]] * factor)
-
-				pen=wx.Pen(colour ,4)
-				dc.SetPen(pen)
-				dc.DrawLine(pointPosition[0], pointPosition[1], previousPointPosition[0], previousPointPosition[1])
+				# if self.currentFrequency == f:
+				# 	pen=wx.Pen(activeColour ,4)
+				# else:
+				# 	pen=wx.Pen(colour ,4)
 
 
+				x = left + i * (right - left) / float(len(interpolatedFrequencies) - 1)
+				if f in frequencies:
+					pen=wx.Pen(activeColour ,4)
+					dc.SetPen(pen)
+					dc.DrawLine(x, top, x, bottom)
 
-			if f in frequencies:
-				font = wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
-				dc.SetTextForeground(colour)
-				dc.SetFont(font)
+				# connecting lines
+				pointPosition = (x, bottom - volumes[f] * factor)
 
-				text = str(f)
-				if f > 1000:
-					text = '%sk' % (f // 1000)
+				if i > 0:
+					previousPointPosition = (left + (i-1) * (right - left) / float(len(interpolatedFrequencies) - 1), bottom - volumes[interpolatedFrequencies[i-1]] * factor)
 
-					if f % 1000:
-						text += str(f % 1000 / 100)
-
-				dc.DrawLabel(text, wx.Rect(x - 20, bottom + 20, 40, 20), wx.ALIGN_CENTER)
+					pen=wx.Pen(colour ,4)
+					dc.SetPen(pen)
+					dc.DrawLine(pointPosition[0], pointPosition[1], previousPointPosition[0], previousPointPosition[1])
 
 
-			if f in frequencies:
-				dc.SetPen(wx.Pen(colour ,0))
-				dc.SetBrush(wx.Brush(colour))
 
-				pointSize = float(width) / float(len(frequencies) - 1) * .2
-				dc.DrawCircle(pointPosition[0], pointPosition[1], pointSize)
+				if f in frequencies:
+					font = wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+					dc.SetTextForeground(colour)
+					dc.SetFont(font)
 
-		self.playButton.SetPosition((marginHorizontal, size[1] - marginBottom + 100))
-		self.stopButton.SetPosition((marginHorizontal + 100, size[1] - marginBottom + 100))
+					text = str(f)
+					if f > 1000:
+						text = '%sk' % (f // 1000)
+
+						if f % 1000:
+							text += str(f % 1000 / 100)
+
+					dc.DrawLabel(text, wx.Rect(x - 20, bottom + 20, 40, 20), wx.ALIGN_CENTER)
+
+
+				if f in frequencies:
+					dc.SetPen(wx.Pen(colour ,0))
+					dc.SetBrush(wx.Brush(colour))
+
+					pointSize = float(width) / float(len(frequencies) - 1) * .2
+					dc.DrawCircle(pointPosition[0], pointPosition[1], pointSize)
+
+		self.deviceButton.SetPosition((marginHorizontal, size[1] - marginBottom + 100))
+		self.playButton.SetPosition((marginHorizontal + 100, size[1] - marginBottom + 100))
+		self.stopButton.SetPosition((marginHorizontal + 200, size[1] - marginBottom + 100))
 
 
 	def OnClose(self, event):
@@ -278,15 +268,51 @@ class Example(wx.Frame):
 		self.Destroy()
 #		exit()
 
+	def OnDevice(self, event):
+
+		global frequencies, interpolatedFrequencies, volumes
+
+		# otherwise ask the user what new file to open
+		with wx.FileDialog(self, "Open EQ .plist file", wildcard="plist files (*.plist)|*.plist",
+						   style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as fileDialog:
+
+			if fileDialog.ShowModal() == wx.ID_CANCEL:
+				return     # the user changed their mind
+
+			# Proceed loading the file chosen by the user
+			pathname = fileDialog.GetPath()
+			try:
+				frequencies = plistlib.readPlist(pathname)
+
+				interpolatedFrequencies = []
+				for i, f in enumerate(frequencies):
+					if i > 0 and intermediateSteps > 0:
+
+						for s in range(intermediateSteps):
+							interpolatedFrequencies.append(Interpolate(frequencies[i-1], f, (s + 1)/float(intermediateSteps + 1)))
+
+					interpolatedFrequencies.append(f)
+
+				volumes = {}
+				for f in interpolatedFrequencies:
+					volumes[f] = 0
+
+				self.Refresh()
+
+			except IOError:
+				wx.LogError("Cannot open file '%s'." % pathname)
+
+
 	def OnPlay(self, event):
-		self.playing = True
-		print 'Play'
+
+		if frequencies:
+			self.playing = True
 
 	def OnStop(self, event):
-		self.currentFrequency = None
-		self.Refresh()
-		self.playing = False
-		print 'Stop'
+		if frequencies:
+			self.currentFrequency = None
+			self.Refresh()
+			self.playing = False
 
 	def DrawLine(self):
 		dc = wx.ClientDC(self)
@@ -294,7 +320,7 @@ class Example(wx.Frame):
 
 if __name__ == '__main__':
 	app = wx.App()
-	e = Example(None, 'Line')
+	e = Example(None, 'Frequency Analyzer')
 	e.DrawLine()
 	e.Show()
 #	e.play()
