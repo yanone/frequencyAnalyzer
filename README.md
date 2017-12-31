@@ -10,11 +10,12 @@ This tool is a cheaply hacked implementation of similar professional solutions. 
 
 ![](window.png)
 
-Requires `pyaudio`, which in turns requires `portaudio`.
+Requires  `wx`, as well as `pyaudio`, which in turns requires `portaudio`.
 
 Install (on Mac):
 
 ```
+pip install wx
 brew install portaudio
 pip install pyaudio
 ```
