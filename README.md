@@ -15,7 +15,7 @@ Requires  `wx`, as well as `pyaudio`, which in turns requires `portaudio`, which
 Install (on Mac):
 
 ```
-pip install wx
+pip install wxPython
 brew install portaudio
 pip install pyaudio
 ```
