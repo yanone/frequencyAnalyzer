@@ -6,7 +6,7 @@ import pyaudio
 import numpy as np
 import wave
 import audioop
-import time
+import time, os
 
 import wx
 from ynlib.maths import Interpolate
@@ -283,6 +283,8 @@ class Example(wx.Frame):
 			pathname = fileDialog.GetPath()
 			try:
 				frequencies = plistlib.readPlist(pathname)
+
+				self.SetTitle(os.path.basename(os.path.splitext(pathname)[0]))
 
 				interpolatedFrequencies = []
 				for i, f in enumerate(frequencies):
