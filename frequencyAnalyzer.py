@@ -62,7 +62,23 @@ def play(f, thread):
 
 	# generate samples, note conversion to float32 array
 	samples = (np.sin(2*np.pi*np.arange(fs*duration*2.0)*f/fs)).astype(np.float32)
+	# print samples
 
+	# def sine_wave(frequency=440.0, framerate=RATE, amplitude=0.5):
+	# 	amplitude = max(min(amplitude, 1), 0)
+	# 	return (float(amplitude) * math.sin(2.0*math.pi*float(frequency)*(float(i)/float(framerate))) for i in count(0))
+
+	# samples = (f, RATE)
+	# print samples
+	def sine_wave(frequency=440.0, framerate=44100, amplitude=0.5, duration = 1.0):
+		period = int(framerate / frequency)
+		if amplitude > 1.0: amplitude = 1.0
+		if amplitude < 0.0: amplitude = 0.0
+		lookup_table = [float(amplitude) * math.sin(2.0*math.pi*float(frequency)*(float(i%period)/float(framerate))) for i in xrange(period)]
+		return lookup_table#(lookup_table[i%period] for i in count(0))
+		
+#	samples = sine_wave(f, RATE, .5, .1)
+#	print samples
 
 	ramp = int(len(samples) * .1)
 #	print samples[-ramp:]
@@ -78,7 +94,7 @@ def play(f, thread):
 def volume(f, thread):
 
 	global averageVolume
-	time.sleep(max(0, duration / 2.0 - 0.1))
+	time.sleep(max(0, duration / 2.0 ))
 
 	input = pyaudio.PyAudio()
 	inputStream = input.open(format=FORMAT,
@@ -89,20 +105,22 @@ def volume(f, thread):
 
 	_max = 0
 
-
+	values = []
 	for i in range(0, int(RATE / CHUNK * max(.1, duration * .2))):
 		data = inputStream.read(CHUNK)
 		rms = audioop.rms(data, 2)    # here's where you calculate the volume
+		values.append(rms)
 		_max = max(_max, rms)
 
+	value = sum(values) / float(len(values))
 
-	_max = 20 * math.log10(_max)
+	value = 20 * math.log10(value)
 #	print f, _max
 
-	volumes[f] = _max
-	averageVolume = sum(volumes.values())/len(volumes.values())
+	volumes[f] = value
+	averageVolume = sum(volumes.values())/ float(len(volumes.values()))
 
-	thread.frame._max = max(thread.frame._max, _max)
+	thread.frame._max = max(thread.frame._max, value)
 #	thread.frame.Refresh()
 
 #	print volumes
