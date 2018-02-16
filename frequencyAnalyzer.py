@@ -8,6 +8,7 @@ import wave
 import audioop
 import time, os
 import math
+import json
 
 import wx
 from ynlib.maths import Interpolate
@@ -39,10 +40,10 @@ duration = 0.10  # in seconds, may be float
 
 
 # input
-CHUNK = 2048
+CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
-RATE = 44100
+RATE = 48000
 
 
 
@@ -55,6 +56,29 @@ outputStream = out.open(format=pyaudio.paFloat32,
 			output=True,
 #			frames_per_buffer=CHUNK,
 			)
+
+
+class AppKitNSUserDefaults(object):
+	def __init__(self, name = None):
+		from AppKit import NSUserDefaults
+		if name:
+			self.defaults = NSUserDefaults.alloc().initWithSuiteName_(name)
+		else:
+			self.defaults = NSUserDefaults.standardUserDefaults()
+
+
+	def get(self, key):
+		if self.defaults.objectForKey_(key):
+			return json.loads(self.defaults.objectForKey_(key))
+
+	def set(self, key, value):
+		self.defaults.setObject_forKey_(json.dumps(value), key)
+
+	def remove(self, key):
+		self.defaults.removeObjectForKey_(key)
+
+
+
 
 def play(f, thread):
 
@@ -80,11 +104,11 @@ def play(f, thread):
 #	samples = sine_wave(f, RATE, .5, .1)
 #	print samples
 
-	ramp = int(len(samples) * .1)
-#	print samples[-ramp:]
-	for i in range(ramp):
-		samples[i] = Interpolate(0, samples[i], i/float(ramp))
-		samples[-i-1] = Interpolate(0, samples[-i-1], i/float(ramp))
+# 	ramp = int(len(samples) * .1)
+# #	print samples[-ramp:]
+# 	for i in range(ramp):
+# 		samples[i] = Interpolate(0, samples[i], i/float(ramp))
+# 		samples[-i-1] = Interpolate(0, samples[-i-1], i/float(ramp))
 	# print samples[-ramp:]
 
 	# play. May repeat with different volume values (if done interactively) 
@@ -112,9 +136,15 @@ def volume(f, thread):
 		values.append(rms)
 		_max = max(_max, rms)
 
+
 	value = sum(values) / float(len(values))
 
+	print value
+
 	value = 20 * math.log10(value)
+
+
+#	print value
 #	print f, _max
 
 	volumes[f] = value
@@ -169,6 +199,8 @@ class Example(wx.Frame):
 		super(Example, self).__init__(parent, title=title, 
 			size=(1000, 600))
 
+		self.preferences = AppKitNSUserDefaults('de.yanone.frequencyAnalyzer')
+
 		self.alive = True
 		self._max = 0
 		self.currentFrequency = None
@@ -190,6 +222,11 @@ class Example(wx.Frame):
 
 		dc = wx.ClientDC(self)
 		dc.DrawLine(50, 60, 190, 60)
+
+
+		if self.preferences.get('deviceFile'):
+			self.openDeviceFile(self.preferences.get('deviceFile'))
+
 
 	def OnPaint(self, event=None):
 		dc = wx.PaintDC(self)
@@ -318,7 +355,6 @@ class Example(wx.Frame):
 
 	def OnDevice(self, event):
 
-		global frequencies, interpolatedFrequencies, volumes
 
 		# otherwise ask the user what new file to open
 		with wx.FileDialog(self, "Open EQ .plist file", wildcard="plist files (*.plist)|*.plist",
@@ -329,28 +365,38 @@ class Example(wx.Frame):
 
 			# Proceed loading the file chosen by the user
 			pathname = fileDialog.GetPath()
-			try:
-				frequencies = plistlib.readPlist(pathname)
 
-				self.SetTitle(os.path.basename(os.path.splitext(pathname)[0]))
+			self.openDeviceFile(pathname)
 
-				interpolatedFrequencies = []
-				for i, f in enumerate(frequencies):
-					if i > 0 and intermediateSteps > 0:
+	def openDeviceFile(self, pathname):
 
-						for s in range(intermediateSteps):
-							interpolatedFrequencies.append(Interpolate(frequencies[i-1], f, (s + 1)/float(intermediateSteps + 1)))
+		global frequencies, interpolatedFrequencies, volumes, averageVolume
 
-					interpolatedFrequencies.append(f)
+		try:
+			frequencies = plistlib.readPlist(pathname)
 
-				volumes = {}
-				for f in interpolatedFrequencies:
-					volumes[f] = 0
+			self.SetTitle(os.path.basename(os.path.splitext(pathname)[0]))
 
-				self.Refresh()
+			interpolatedFrequencies = []
+			for i, f in enumerate(frequencies):
+				if i > 0 and intermediateSteps > 0:
 
-			except IOError:
-				wx.LogError("Cannot open file '%s'." % pathname)
+					for s in range(intermediateSteps):
+						interpolatedFrequencies.append(Interpolate(frequencies[i-1], f, (s + 1)/float(intermediateSteps + 1)))
+
+				interpolatedFrequencies.append(f)
+
+			volumes = {}
+			averageVolume = 0
+			for f in interpolatedFrequencies:
+				volumes[f] = 0
+
+			self.Refresh()
+
+			self.preferences.set('deviceFile', pathname)
+
+		except IOError:
+			wx.LogError("Cannot open file '%s'." % pathname)
 
 
 	def OnPlay(self, event):
