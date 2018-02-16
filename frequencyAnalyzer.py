@@ -7,6 +7,7 @@ import numpy as np
 import wave
 import audioop
 import time, os
+import math
 
 import wx
 from ynlib.maths import Interpolate
@@ -19,12 +20,18 @@ frequencies = []
 interpolatedFrequencies = []
 volumes = {}
 intermediateSteps = 3
+minimumVolume = None
+maximumVolume = None
+averageVolume = 0
 
 ###############################################################
 
 	
 # output
 out = pyaudio.PyAudio()
+
+
+
 _volume = 1.0     # range [0.0, 1.0]
 fs = 44100       # sampling rate, Hz, must be integer
 duration = 0.10  # in seconds, may be float
@@ -46,7 +53,8 @@ outputStream = out.open(format=pyaudio.paFloat32,
 			channels=CHANNELS,
 			rate=RATE,
 			output=True,
-			frames_per_buffer=CHUNK)
+#			frames_per_buffer=CHUNK,
+			)
 
 def play(f, thread):
 
@@ -69,6 +77,7 @@ def play(f, thread):
 
 def volume(f, thread):
 
+	global averageVolume
 	time.sleep(max(0, duration / 2.0 - 0.1))
 
 	input = pyaudio.PyAudio()
@@ -86,12 +95,18 @@ def volume(f, thread):
 		rms = audioop.rms(data, 2)    # here's where you calculate the volume
 		_max = max(_max, rms)
 
+
+	_max = 20 * math.log10(_max)
+#	print f, _max
+
 	volumes[f] = _max
+	averageVolume = sum(volumes.values())/len(volumes.values())
 
 	thread.frame._max = max(thread.frame._max, _max)
 #	thread.frame.Refresh()
 
 #	print volumes
+#	print min(volumes.values()), max(volumes.values())
 
 	inputStream.stop_stream()
 	inputStream.close()
@@ -184,9 +199,14 @@ class Example(wx.Frame):
 		height = max(1, (bottom - top))
 		width = max(1, (right - left))
 
+		colour = wx.Colour(223,219,0)
+		colour = wx.Colour(223,219,0)
+		activeColour = wx.Colour(229,53,45)
+
+
 		if frequencies:
-			_min = min([volumes[x] for x in volumes.keys()])
-			_max = min([volumes[x] for x in volumes.keys()])
+			_min = min(volumes.values())
+			_max = max(volumes.values())
 	#		self._max = max(_max, self._max)
 
 			if self._max:
@@ -197,10 +217,15 @@ class Example(wx.Frame):
 	#		print 'max', self._max, 'height', height, 'factor', factor
 	#		print factor
 
+			# Average
+			y = bottom - averageVolume * factor
+			pen=wx.Pen(activeColour ,4)
+			dc.SetPen(pen)
+			dc.DrawLine(left, y, right, y)
+
+
 			for i, f in enumerate(interpolatedFrequencies):
 
-				colour = wx.Colour(223,219,0)
-				activeColour = wx.Colour(229,53,45)
 
 				# if self.currentFrequency == f:
 				# 	pen=wx.Pen(activeColour ,4)
@@ -251,6 +276,11 @@ class Example(wx.Frame):
 		self.deviceButton.SetPosition((marginHorizontal, size[1] - marginBottom + 100))
 		self.playButton.SetPosition((marginHorizontal + 100, size[1] - marginBottom + 100))
 		self.stopButton.SetPosition((marginHorizontal + 200, size[1] - marginBottom + 100))
+
+		font = wx.Font(12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+		dc.SetTextForeground(colour)
+		dc.SetFont(font)
+		dc.DrawLabel('Input: %s, Output: %s' % (out.get_default_input_device_info()['name'], out.get_default_output_device_info()['name']), wx.Rect(marginHorizontal + 310, size[1] - marginBottom + 102, 200, 100))
 
 
 	def OnClose(self, event):
@@ -322,7 +352,7 @@ class Example(wx.Frame):
 
 if __name__ == '__main__':
 	app = wx.App()
-	e = Example(None, 'Frequency Analyzer')
+	e = Example(None, 'Frequency Response')
 	e.DrawLine()
 	e.Show()
 #	e.play()
