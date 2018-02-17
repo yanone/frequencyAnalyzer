@@ -141,7 +141,7 @@ def volume(f, thread):
 
 	print value
 
-	value = 20 * math.log10(value)
+	value = 20 * math.log10(value) + 2.0
 
 
 #	print value
