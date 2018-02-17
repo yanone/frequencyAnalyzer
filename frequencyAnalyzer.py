@@ -12,7 +12,7 @@ import json
 
 import wx
 from ynlib.maths import Interpolate
-
+#from pysine import sine
 
 
 ###############################################################
@@ -20,6 +20,7 @@ from ynlib.maths import Interpolate
 frequencies = []
 interpolatedFrequencies = []
 volumes = {}
+clipping = {}
 intermediateSteps = 3
 minimumVolume = None
 maximumVolume = None
@@ -40,10 +41,10 @@ duration = 0.10  # in seconds, may be float
 
 
 # input
-CHUNK = 1024
+CHUNK = 2048
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
-RATE = 48000
+RATE = 44100
 
 
 
@@ -54,7 +55,7 @@ outputStream = out.open(format=pyaudio.paFloat32,
 			channels=CHANNELS,
 			rate=RATE,
 			output=True,
-#			frames_per_buffer=CHUNK,
+			frames_per_buffer=256,
 			)
 
 
@@ -85,7 +86,8 @@ def play(f, thread):
 
 
 	# generate samples, note conversion to float32 array
-	samples = (np.sin(2*np.pi*np.arange(fs*duration*2.0)*f/fs)).astype(np.float32)
+#	samples = (np.sin(2*np.pi*np.arange(fs*duration*2.0)*f/fs)).astype(np.float32)
+	samples = (np.sin(2*np.pi*np.arange(fs*duration)*f/fs)).astype(np.float32).tobytes()
 	# print samples
 
 	# def sine_wave(frequency=440.0, framerate=RATE, amplitude=0.5):
@@ -99,8 +101,9 @@ def play(f, thread):
 		if amplitude > 1.0: amplitude = 1.0
 		if amplitude < 0.0: amplitude = 0.0
 		lookup_table = [float(amplitude) * math.sin(2.0*math.pi*float(frequency)*(float(i%period)/float(framerate))) for i in xrange(period)]
-		return lookup_table#(lookup_table[i%period] for i in count(0))
+		return lookup_table(lookup_table[i%period] for i in range(period))
 		
+#eq
 #	samples = sine_wave(f, RATE, .5, .1)
 #	print samples
 
@@ -112,12 +115,14 @@ def play(f, thread):
 	# print samples[-ramp:]
 
 	# play. May repeat with different volume values (if done interactively) 
-	outputStream.write(_volume*samples)
+	outputStream.write(samples)
 
 
 def volume(f, thread):
 
-	global averageVolume
+	print f
+
+	global averageVolume, clipping
 	time.sleep(max(0, duration / 2.0 ))
 
 	input = pyaudio.PyAudio()
@@ -139,7 +144,13 @@ def volume(f, thread):
 
 	value = sum(values) / float(len(values))
 
-	print value
+#	print value
+
+	if value > 10000:
+		clipping[f] = True
+	else:
+		clipping[f] = False
+
 
 	value = 20 * math.log10(value) + 2.0
 
@@ -190,7 +201,7 @@ class Record(threading.Thread):
 #			for f in interpolatedFrequencies:
 #				print '%s: %s' % (f, volumes[f])
 
-			time.sleep(.1)
+			time.sleep(duration)
 
 
 
@@ -244,9 +255,9 @@ class Example(wx.Frame):
 #		dc.DrawRectangle(0, 0, size[0], size[1])
 
 
-		marginHorizontal = 100
-		marginTop = 100
-		marginBottom = 200
+		marginHorizontal = max(size[0] * .05, 100)
+		marginTop = max(size[1] * .1, 100)
+		marginBottom = max(size[1] * .2, 200)
 		left = marginHorizontal
 		right = size[0] - marginHorizontal
 		top = marginTop
@@ -257,6 +268,14 @@ class Example(wx.Frame):
 		colour = wx.Colour(223,219,0)
 		colour = wx.Colour(223,219,0)
 		activeColour = wx.Colour(229,53,45)
+
+		fontSize = max(width / 80.0, 10)
+
+		# dB(A) label
+		font = wx.Font(fontSize, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+		dc.SetTextForeground(colour)
+		dc.SetFont(font)
+		dc.DrawLabel('dB(A)', wx.Rect(left - 50, top + height / 2.0, 40, 20), wx.ALIGN_RIGHT)
 
 
 		if frequencies:
@@ -307,7 +326,7 @@ class Example(wx.Frame):
 
 
 				if f in frequencies:
-					font = wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+					font = wx.Font(fontSize, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
 					dc.SetTextForeground(colour)
 					dc.SetFont(font)
 
@@ -318,7 +337,17 @@ class Example(wx.Frame):
 						if f % 1000:
 							text += str(f % 1000 / 100)
 
-					dc.DrawLabel(text, wx.Rect(x - 20, bottom + 20, 40, 20), wx.ALIGN_CENTER)
+					dc.DrawLabel(text, wx.Rect(x - 20, bottom + max(20, size[0] / 75.0), 40, 20), wx.ALIGN_CENTER)
+
+
+				if clipping.has_key(f) and clipping[f] == True:
+
+					font = wx.Font(fontSize, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
+					dc.SetTextForeground(colour)
+					dc.SetFont(font)
+
+
+					dc.DrawLabel('C', wx.Rect(x - 20, top - 20, 40, 20), wx.ALIGN_CENTER)
 
 
 				if f in frequencies:
@@ -328,14 +357,14 @@ class Example(wx.Frame):
 					pointSize = float(width) / float(len(frequencies) - 1) * .2
 					dc.DrawCircle(pointPosition[0], pointPosition[1], pointSize)
 
-		self.deviceButton.SetPosition((marginHorizontal, size[1] - marginBottom + 100))
-		self.playButton.SetPosition((marginHorizontal + 100, size[1] - marginBottom + 100))
-		self.stopButton.SetPosition((marginHorizontal + 200, size[1] - marginBottom + 100))
+		self.deviceButton.SetPosition((marginHorizontal, size[1] - marginBottom + max(100, size[0] / 15.0)))
+		self.playButton.SetPosition((marginHorizontal + 100, size[1] - marginBottom + max(100, size[0] / 15.0)))
+		self.stopButton.SetPosition((marginHorizontal + 200, size[1] - marginBottom + max(100, size[0] / 15.0)))
 
 		font = wx.Font(12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
 		dc.SetTextForeground(colour)
 		dc.SetFont(font)
-		dc.DrawLabel('Input: %s, Output: %s' % (out.get_default_input_device_info()['name'], out.get_default_output_device_info()['name']), wx.Rect(marginHorizontal + 310, size[1] - marginBottom + 102, 200, 100))
+		dc.DrawLabel('Input: %s, Output: %s' % (out.get_default_input_device_info()['name'], out.get_default_output_device_info()['name']), wx.Rect(marginHorizontal + 310, size[1] - marginBottom + 2 + max(100, size[0] / 15.0), 200, 100))
 
 
 	def OnClose(self, event):
@@ -370,7 +399,7 @@ class Example(wx.Frame):
 
 	def openDeviceFile(self, pathname):
 
-		global frequencies, interpolatedFrequencies, volumes, averageVolume
+		global frequencies, interpolatedFrequencies, volumes, averageVolume, clipping
 
 		try:
 			frequencies = plistlib.readPlist(pathname)
@@ -387,6 +416,7 @@ class Example(wx.Frame):
 				interpolatedFrequencies.append(f)
 
 			volumes = {}
+			clipping = {}			
 			averageVolume = 0
 			for f in interpolatedFrequencies:
 				volumes[f] = 0
@@ -405,11 +435,14 @@ class Example(wx.Frame):
 			self.playing = True
 
 	def OnStop(self, event):
+
+
 		if frequencies:
 			self.currentFrequency = None
 			self.Refresh()
 			self.playing = False
 
+	
 	def DrawLine(self):
 		dc = wx.ClientDC(self)
 		dc.DrawLine(50, 60, 190, 60)
