@@ -41,13 +41,10 @@ duration = 0.10  # in seconds, may be float
 
 
 # input
-CHUNK = 2048
+CHUNK = 4096
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
-
-
-
 
 
 
@@ -55,7 +52,7 @@ outputStream = out.open(format=pyaudio.paFloat32,
 			channels=CHANNELS,
 			rate=RATE,
 			output=True,
-			frames_per_buffer=256,
+			frames_per_buffer=2048,
 			)
 
 
@@ -120,7 +117,7 @@ def play(f, thread):
 
 def volume(f, thread):
 
-	print f
+#	print f
 
 	global averageVolume, clipping
 	time.sleep(max(0, duration / 2.0 ))
@@ -142,6 +139,17 @@ def volume(f, thread):
 		_max = max(_max, rms)
 
 
+	# for i in range(10): #to it a few times just to see
+	# 	data = np.fromstring(inputStream.read(CHUNK),dtype=np.int16)
+	# 	data = data * np.hanning(len(data)) # smooth the FFT by windowing data
+	# 	fft = abs(np.fft.fft(data).real)
+	# 	fft = fft[:int(len(fft)/2)] # keep only first half
+	# 	freq = np.fft.fftfreq(CHUNK,1.0/RATE)
+	# 	freq = freq[:int(len(freq)/2)] # keep only first half
+	# 	freqPeak = freq[np.where(fft==np.max(fft))[0][0]]+1
+	# 	print(f, "peak frequency: %d Hz"%freqPeak)
+
+ #   	value = 0
 	value = sum(values) / float(len(values))
 
 #	print value
