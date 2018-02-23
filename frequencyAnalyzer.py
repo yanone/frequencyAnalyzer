@@ -25,6 +25,9 @@ intermediateSteps = 3
 minimumVolume = None
 maximumVolume = None
 averageVolume = 0
+currentVolume = 0
+peakVolume = 80
+volumeScope = 120.0
 
 ###############################################################
 
@@ -119,7 +122,7 @@ def volume(f, thread):
 
 #	print f
 
-	global averageVolume, clipping
+	global averageVolume, clipping, currentVolume
 	time.sleep(max(0, duration / 2.0 ))
 
 	input = pyaudio.PyAudio()
@@ -154,13 +157,18 @@ def volume(f, thread):
 
 #	print value
 
-	if value > 10000:
+
+
+	value = 20 * math.log10(value) + 2.0
+
+
+	if value > peakVolume:
 		clipping[f] = True
 	else:
 		clipping[f] = False
 
 
-	value = 20 * math.log10(value) + 2.0
+	currentVolume = value
 
 
 #	print value
@@ -267,7 +275,7 @@ class Example(wx.Frame):
 		marginTop = max(size[1] * .1, 100)
 		marginBottom = max(size[1] * .2, 200)
 		left = marginHorizontal
-		right = size[0] - marginHorizontal
+		right = size[0] - marginHorizontal - 100
 		top = marginTop
 		bottom = size[1] - marginBottom
 		height = max(1, (bottom - top))
@@ -286,6 +294,22 @@ class Example(wx.Frame):
 		dc.DrawLabel('dB(A)', wx.Rect(left - 50, top + height / 2.0, 40, 20), wx.ALIGN_RIGHT)
 
 
+		# Volume
+		pen=wx.Pen(colour ,4)
+		dc.SetPen(pen)
+		y = bottom - height * currentVolume / volumeScope
+		dc.DrawLine(right + 85, bottom, right + 85, y)
+
+		pen=wx.Pen(activeColour ,4)
+		dc.SetPen(pen)
+		dc.DrawLine(right + 70, top, right + 100, top)
+		dc.DrawLine(right + 100, top, right + 100, bottom)
+		dc.DrawLine(right + 70, bottom, right + 100, bottom)
+		y = bottom - height * peakVolume / volumeScope
+		dc.DrawLine(right + 70, y, right + 100, y)
+
+
+
 		if frequencies:
 			_min = min(volumes.values())
 			_max = max(volumes.values())
@@ -295,16 +319,22 @@ class Example(wx.Frame):
 				factor = float(height) / float(self._max)
 			else:
 				factor = 1
+			factor = height / volumeScope
 
 	#		print 'max', self._max, 'height', height, 'factor', factor
 	#		print factor
 
 			# Average
 			y = bottom - averageVolume * factor
-			pen=wx.Pen(activeColour ,4)
+			pen=wx.Pen(colour ,4)
 			dc.SetPen(pen)
 			dc.DrawLine(left, y, right, y)
 
+			# Peak
+			y = bottom - peakVolume * factor
+			pen=wx.Pen(activeColour ,4)
+			dc.SetPen(pen)
+			dc.DrawLine(left, y, right, y)
 
 			for i, f in enumerate(interpolatedFrequencies):
 
@@ -317,7 +347,11 @@ class Example(wx.Frame):
 
 				x = left + i * (right - left) / float(len(interpolatedFrequencies) - 1)
 				if f in frequencies:
-					pen=wx.Pen(activeColour ,4)
+
+					if clipping.has_key(f) and clipping[f] == True:
+						pen=wx.Pen(colour ,4)
+					else:
+						pen=wx.Pen(activeColour ,4)
 					dc.SetPen(pen)
 					dc.DrawLine(x, top, x, bottom)
 
@@ -348,14 +382,6 @@ class Example(wx.Frame):
 					dc.DrawLabel(text, wx.Rect(x - 20, bottom + max(20, size[0] / 75.0), 40, 20), wx.ALIGN_CENTER)
 
 
-				if clipping.has_key(f) and clipping[f] == True:
-
-					font = wx.Font(fontSize, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
-					dc.SetTextForeground(colour)
-					dc.SetFont(font)
-
-
-					dc.DrawLabel('C', wx.Rect(x - 20, top - 20, 40, 20), wx.ALIGN_CENTER)
 
 
 				if f in frequencies:
