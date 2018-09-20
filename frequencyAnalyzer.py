@@ -100,7 +100,7 @@ def play(f, thread):
 		period = int(framerate / frequency)
 		if amplitude > 1.0: amplitude = 1.0
 		if amplitude < 0.0: amplitude = 0.0
-		lookup_table = [float(amplitude) * math.sin(2.0*math.pi*float(frequency)*(float(i%period)/float(framerate))) for i in xrange(period)]
+		lookup_table = [float(amplitude) * math.sin(2.0*math.pi*float(frequency)*(float(i%period)/float(framerate))) for i in range(period)]
 		return lookup_table(lookup_table[i%period] for i in range(period))
 		
 #eq
@@ -155,10 +155,10 @@ def volume(f, thread):
  #   	value = 0
 	value = sum(values) / float(len(values))
 
-#	print value
+	print(value)
 
 
-
+	# dB(A)
 	value = 20 * math.log10(value) + 2.0
 
 
@@ -175,7 +175,7 @@ def volume(f, thread):
 #	print f, _max
 
 	volumes[f] = value
-	averageVolume = sum(volumes.values())/ float(len(volumes.values()))
+	averageVolume = sum(volumes.values())/ float(len(list(volumes.values())))
 
 	thread.frame._max = max(thread.frame._max, value)
 #	thread.frame.Refresh()
@@ -348,7 +348,7 @@ class Example(wx.Frame):
 				x = left + i * (right - left) / float(len(interpolatedFrequencies) - 1)
 				if f in frequencies:
 
-					if clipping.has_key(f) and clipping[f] == True:
+					if f in clipping and clipping[f] == True:
 						pen=wx.Pen(colour ,4)
 					else:
 						pen=wx.Pen(activeColour ,4)
