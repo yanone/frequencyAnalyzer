@@ -51,6 +51,25 @@ RATE = 44100
 
 
 
+###############################################################
+
+
+def CleanFloat(number, locale = 'en'):
+	"""\
+	Return number without decimal points if .0, otherwise with .x)
+	"""
+	try:
+		if number % 1 == 0:
+			return str(int(number))
+		else:
+			return str(float(number))
+	except:
+		pass
+
+
+###############################################################
+
+
 outputStream = out.open(format=pyaudio.paFloat32,
 			channels=CHANNELS,
 			rate=RATE,
@@ -155,7 +174,7 @@ def volume(f, thread):
  #   	value = 0
 	value = sum(values) / float(len(values))
 
-	print(value)
+#	print(value)
 
 
 	# dB(A)
@@ -324,12 +343,6 @@ class Example(wx.Frame):
 	#		print 'max', self._max, 'height', height, 'factor', factor
 	#		print factor
 
-			# Average
-			y = bottom - averageVolume * factor
-			pen=wx.Pen(colour ,4)
-			dc.SetPen(pen)
-			dc.DrawLine(left, y, right, y)
-
 			# Peak
 			y = bottom - peakVolume * factor
 			pen=wx.Pen(activeColour ,4)
@@ -339,13 +352,29 @@ class Example(wx.Frame):
 			for i, f in enumerate(interpolatedFrequencies):
 
 
-				# if self.currentFrequency == f:
-				# 	pen=wx.Pen(activeColour ,4)
-				# else:
-				# 	pen=wx.Pen(colour ,4)
-
-
 				x = left + i * (right - left) / float(len(interpolatedFrequencies) - 1)
+
+				# Average
+				x2 = left + (i+1) * (right - left) / float(len(interpolatedFrequencies) - 1)
+
+				if f <= 80:
+					volumeAdjust = 12
+				elif f <= 100:
+					volumeAdjust = 9
+				elif f <= 125:
+					volumeAdjust = 6
+				elif f <= 160:
+					volumeAdjust = 3
+				else:
+					volumeAdjust = 0
+
+				y = bottom - (averageVolume + volumeAdjust) * factor
+				pen=wx.Pen(wx.Colour(125,125,125) ,4)
+				dc.SetPen(pen)
+				dc.DrawLine(x, y, x2, y)
+
+
+				# Grid
 				if f in frequencies:
 
 					if f in clipping and clipping[f] == True:
@@ -354,6 +383,10 @@ class Example(wx.Frame):
 						pen=wx.Pen(activeColour ,4)
 					dc.SetPen(pen)
 					dc.DrawLine(x, top, x, bottom)
+
+
+
+
 
 				# connecting lines
 				pointPosition = (x, bottom - volumes[f] * factor)
@@ -373,11 +406,11 @@ class Example(wx.Frame):
 					dc.SetFont(font)
 
 					text = str(f)
-					if f > 1000:
+					if f >= 1000:
 						text = '%sk' % (f // 1000)
 
 						if f % 1000:
-							text += str(f % 1000 / 100)
+							text += CleanFloat(f % 1000 / 100)
 
 					dc.DrawLabel(text, wx.Rect(x - 20, bottom + max(20, size[0] / 75.0), 40, 20), wx.ALIGN_CENTER)
 
